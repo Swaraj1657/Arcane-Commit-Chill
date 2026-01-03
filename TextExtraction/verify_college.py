@@ -4,7 +4,7 @@ import re
 # =========================
 # CONFIG
 # =========================
-COLLEGE_DB_PATH = "TextExtraction/College-ALL COLLEGE.xlsx"
+COLLEGE_DB_PATH = "College-ALL COLLEGE.xlsx"
 
 # =========================
 # HELPERS
