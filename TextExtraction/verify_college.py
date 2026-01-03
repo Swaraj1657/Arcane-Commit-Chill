@@ -22,13 +22,27 @@ TRUSTED_PRIVATE_ISSUERS = [
 def normalize(text):
     if not text:
         return ""
+
     text = text.lower()
-    text = re.sub(r"[^a-z0-9 ]", "", text)
+
+    # remove anything inside brackets -> (W), (237)
+    text = re.sub(r"\(.*?\)", "", text)
+
+    # remove commas and special chars
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
+
+    # collapse multiple spaces
+    text = re.sub(r"\s+", " ", text)
+
     return text.strip()
+
+
 
 # =========================
 # COLLEGE EXISTENCE CHECK
 # =========================
+from rapidfuzz import fuzz
+
 def verify_college_from_db(institute_name: str) -> dict:
     if not institute_name:
         return {
@@ -40,24 +54,33 @@ def verify_college_from_db(institute_name: str) -> dict:
     df = pd.read_excel(COLLEGE_DB_PATH)
     target = normalize(institute_name)
 
-    df["__norm__"] = df.apply(
-        lambda row: normalize(" ".join(row.astype(str))),
-        axis=1
-    )
+    best_score = 0
+    best_match = None
 
-    match = df[df["__norm__"].str.contains(target, na=False)]
+    for _, row in df.iterrows():
+        db_text = normalize(" ".join(row.astype(str)))
 
-    if len(match) > 0:
-        return {
-            "verified": True,
-            "status": "VERIFIED",
-            "matched_rows": len(match),
-            "source": "College-ALL COLLEGE.xlsx"
-        }
+        # primary fuzzy match
+        score = fuzz.partial_ratio(target, db_text)
+
+        if score > best_score:
+            best_score = score
+            best_match = db_text
+
+        # ⭐ false-safe threshold
+        if score >= 85:
+            return {
+                "verified": True,
+                "status": "VERIFIED_FUZZY",
+                "match_score": score,
+                "matched_institute": best_match,
+                "source": "College-ALL COLLEGE.xlsx"
+            }
 
     return {
         "verified": False,
         "status": "NOT_FOUND",
+        "best_match_score": best_score,
         "source": "College-ALL COLLEGE.xlsx"
     }
 
