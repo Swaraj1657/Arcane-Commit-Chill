@@ -6,6 +6,15 @@ import re
 # =========================
 COLLEGE_DB_PATH = "TextExtraction/College-ALL COLLEGE.xlsx"
 
+TRUSTED_PRIVATE_ISSUERS = [
+    "mathworks",
+    "coursera",
+    "aws",
+    "google",
+    "microsoft",
+    "nptel"
+]
+
 # =========================
 # HELPERS
 # =========================
@@ -17,13 +26,9 @@ def normalize(text):
     return text.strip()
 
 # =========================
-# CORE VERIFICATION LOGIC
+# COLLEGE EXISTENCE CHECK
 # =========================
 def verify_college_from_db(institute_name: str) -> dict:
-    """
-    Verifies institute name against trusted college database
-    """
-
     if not institute_name:
         return {
             "verified": False,
@@ -32,16 +37,14 @@ def verify_college_from_db(institute_name: str) -> dict:
         }
 
     df = pd.read_excel(COLLEGE_DB_PATH)
+    target = normalize(institute_name)
 
-    normalized_target = normalize(institute_name)
-
-    # normalize each row (no column assumptions)
-    df["__normalized__"] = df.apply(
+    df["__norm__"] = df.apply(
         lambda row: normalize(" ".join(row.astype(str))),
         axis=1
     )
 
-    match = df[df["__normalized__"].str.contains(normalized_target, na=False)]
+    match = df[df["__norm__"].str.contains(target, na=False)]
 
     if len(match) > 0:
         return {
@@ -58,70 +61,101 @@ def verify_college_from_db(institute_name: str) -> dict:
     }
 
 # =========================
-# ATTACH VERIFICATION TO OCR OUTPUT
+# MAIN VERIFICATION LAYER
 # =========================
-def attach_verification(structured_ocr_json: dict) -> dict:
-    institution = structured_ocr_json.get("institution_details", {})
+def attach_verification(data: dict) -> dict:
+    institution = data.get("institution_details", {})
+    metadata = data.get("certificate_metadata", {})
 
-    # ---- BOARD / SCHOOL CERTIFICATE ----
-    # if institution.get("board_name"):
-    #     structured_ocr_json["institution_details"]["verification"] = {
-    #         "verified": True,
-    #         "status": "BOARD_VERIFIED",
-    #         "authority": institution["board_name"]
-    #     }
+    # -------- 1️⃣ BOARD / SCHOOL --------
+    if institution.get("board_name"):
+        data["institution_details"]["verification"] = {
+            "verified": True,
+            "status": "BOARD_VERIFIED",
+            "authority_type": "BOARD",
+            "authority": institution["board_name"]
+        }
 
-    #     structured_ocr_json["fraud_checks"] = {
-    #         "institution_existence": "CONFIRMED",
-    #         "risk_level": "LOW"
-    #     }
+        data["fraud_checks"] = {
+            "risk_level": "LOW"
+        }
 
-    #     structured_ocr_json["verified_profile"] = {
-    #         "auto_verified": True,
-    #         "shareable": True
-    #     }
+        data["verified_profile"] = {
+            "auto_verified": True
+        }
 
-    #     structured_ocr_json["confidence_score"] = 0.92
-    #     return structured_ocr_json
+        data["confidence_score"] = 0.92
+        return data
 
-    # ---- COLLEGE / UNIVERSITY CERTIFICATE ----
+    # -------- 2️⃣ PRIVATE ISSUER (MathWorks etc.) --------
+    issuer_text = (
+        institution.get("name", "") +
+        " " +
+        metadata.get("powered_by", "")
+    ).lower()
+
+    for issuer in TRUSTED_PRIVATE_ISSUERS:
+        if issuer in issuer_text:
+            data["institution_details"]["verification"] = {
+                "verified": True,
+                "status": "ISSUER_VERIFIED",
+                "authority_type": "PRIVATE_ISSUER",
+                "authority": issuer.title()
+            }
+
+            data["fraud_checks"] = {
+                "risk_level": "LOW"
+            }
+
+            data["verified_profile"] = {
+                "auto_verified": True
+            }
+
+            data["confidence_score"] = 0.78
+            return data
+
+    # -------- 3️⃣ COLLEGE / UNIVERSITY --------
     institute_name = (
         institution.get("institute_name")
         or institution.get("name")
         or institution.get("college_name")
     )
 
-    verification_result = verify_college_from_db(institute_name)
-    structured_ocr_json["institution_details"]["verification"] = verification_result
+    verification = verify_college_from_db(institute_name)
 
-    structured_ocr_json["fraud_checks"] = {
-        "institution_existence": verification_result["status"],
-        "risk_level": "LOW" if verification_result["verified"] else "HIGH"
+    data["institution_details"]["verification"] = {
+        **verification,
+        "authority_type": "APPROVED_INSTITUTE_REGISTRY",
+        "authority": "UGC / AICTE Approved Colleges List"
     }
 
-    structured_ocr_json["verified_profile"] = {
-        "auto_verified": verification_result["verified"],
-        "shareable": True
+
+
+    data["fraud_checks"] = {
+        "risk_level": "LOW" if verification["verified"] else "HIGH"
     }
 
-    structured_ocr_json["confidence_score"] = (
-        0.95 if verification_result["verified"] else 0.45
-    )
+    data["verified_profile"] = {
+        "auto_verified": verification["verified"]
+    }
 
-    return structured_ocr_json
+    data["confidence_score"] = 0.95 if verification["verified"] else 0.45
+    return data
 
-
-
+# =========================
+# SUMMARY OVERLAY (ONLY VERIFICATION)
+# =========================
 def add_verification_summary(data: dict) -> dict:
-    verification = data.get("institution_details", {}).get("verification", {})
+    v = data.get("institution_details", {}).get("verification", {})
 
     data["verification_summary"] = {
-        "institution_verified": verification.get("verified", False),
-        "verification_status": verification.get("status"),
+        "authority_type": v.get("authority_type"),
+        "authority": v.get("authority"),
+        "verification_status": v.get("status"),
+        "institution_verified": v.get("verified"),
         "risk_level": data.get("fraud_checks", {}).get("risk_level"),
         "confidence_score": data.get("confidence_score"),
-        "auto_verified": data.get("verified_profile", {}).get("auto_verified"),
-        "source": verification.get("source", "UNKNOWN")
+        "auto_verified": data.get("verified_profile", {}).get("auto_verified")
     }
 
     return data
