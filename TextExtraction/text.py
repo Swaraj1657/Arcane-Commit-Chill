@@ -116,7 +116,7 @@ def process_certificates(file_paths: list) -> dict:
 # =========================
 if __name__ == "__main__":
     files = [
-        "TextExtraction/terna.jpeg",
+        "TextExtraction/certificate.png",
         # "TextExtraction/class10.pdf",
         # "TextExtraction/degree.pdf"
     ]

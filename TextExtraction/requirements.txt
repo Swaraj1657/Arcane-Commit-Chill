@@ -7,5 +7,6 @@ openpyxl
 rapidfuzz
 opencv-python
 numpy
-torch
-clip-by-openai
+fastapi
+uvicorn
+python-multipart
