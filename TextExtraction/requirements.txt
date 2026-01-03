@@ -4,3 +4,8 @@ Pillow
 pandas
 groq
 openpyxl
+rapidfuzz
+opencv-python
+numpy
+torch
+clip-by-openai

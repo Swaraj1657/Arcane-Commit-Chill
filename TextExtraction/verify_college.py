@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from logo_matcher import verify_logo_hybrid
 
 # =========================
 # CONFIG
@@ -67,7 +68,16 @@ def attach_verification(data: dict) -> dict:
     institution = data.get("institution_details", {})
     metadata = data.get("certificate_metadata", {})
 
-    # -------- 1️⃣ BOARD / SCHOOL --------
+    # =========================
+    # INIT SAFETY DEFAULTS
+    # =========================
+    data.setdefault("fraud_checks", {"risk_level": "LOW"})
+    data.setdefault("confidence_score", 0.7)
+    data.setdefault("verified_profile", {"auto_verified": False})
+
+    # =========================
+    # 1️⃣ BOARD / SCHOOL
+    # =========================
     if institution.get("board_name"):
         data["institution_details"]["verification"] = {
             "verified": True,
@@ -76,23 +86,23 @@ def attach_verification(data: dict) -> dict:
             "authority": institution["board_name"]
         }
 
-        data["fraud_checks"] = {
-            "risk_level": "LOW"
-        }
-
-        data["verified_profile"] = {
-            "auto_verified": True
-        }
-
+        data["fraud_checks"]["risk_level"] = "LOW"
+        data["verified_profile"]["auto_verified"] = True
         data["confidence_score"] = 0.92
+
         return data
 
-    # -------- 2️⃣ PRIVATE ISSUER (MathWorks etc.) --------
+    # =========================
+    # 2️⃣ PRIVATE ISSUER
+    # =========================
     issuer_text = (
         institution.get("name", "") +
+        institution.get("institution_name", "") +
+        institution.get("college_name", "") +
         " " +
         metadata.get("powered_by", "")
     ).lower()
+
 
     for issuer in TRUSTED_PRIVATE_ISSUERS:
         if issuer in issuer_text:
@@ -103,18 +113,15 @@ def attach_verification(data: dict) -> dict:
                 "authority": issuer.title()
             }
 
-            data["fraud_checks"] = {
-                "risk_level": "LOW"
-            }
-
-            data["verified_profile"] = {
-                "auto_verified": True
-            }
-
+            data["fraud_checks"]["risk_level"] = "LOW"
+            data["verified_profile"]["auto_verified"] = True
             data["confidence_score"] = 0.78
+
             return data
 
-    # -------- 3️⃣ COLLEGE / UNIVERSITY --------
+    # =========================
+    # 3️⃣ COLLEGE / UNIVERSITY
+    # =========================
     institute_name = (
         institution.get("institute_name")
         or institution.get("name")
@@ -129,21 +136,45 @@ def attach_verification(data: dict) -> dict:
         "authority": "UGC / AICTE Approved Colleges List"
     }
 
+    data["fraud_checks"]["risk_level"] = (
+        "LOW" if verification["verified"] else "HIGH"
+    )
 
-
-    data["fraud_checks"] = {
-        "risk_level": "LOW" if verification["verified"] else "HIGH"
-    }
-
-    data["verified_profile"] = {
-        "auto_verified": verification["verified"]
-    }
-
+    data["verified_profile"]["auto_verified"] = verification["verified"]
     data["confidence_score"] = 0.95 if verification["verified"] else 0.45
+
+    # =========================
+    # 4️⃣ LOGO VERIFICATION (SUPPORTING)
+    # =========================
+    logo_result = verify_logo_hybrid(
+        reference_logo="TextExtraction/known_logos/vesit.png",
+        cropped_logo="extracted_logo.png"
+    )
+
+    data["institution_details"]["logo_verification"] = logo_result
+
+    if not logo_result.get("verified", False):
+        data["fraud_checks"]["risk_level"] = "HIGH"
+        data["confidence_score"] -= 0.2
+
+    # =========================
+    # EXPLAINABILITY
+    # =========================
+    data["explainability"] = {
+        "why_verified": [
+            "Institute exists in approved registry",
+            "Certificate issued by recognized authority"
+        ],
+        "why_risk": [] if data["fraud_checks"]["risk_level"] == "LOW" else [
+            "Logo verification failed",
+            "Institute not found in registry"
+        ]
+    }
+
     return data
 
 # =========================
-# SUMMARY OVERLAY (ONLY VERIFICATION)
+# SUMMARY OVERLAY
 # =========================
 def add_verification_summary(data: dict) -> dict:
     v = data.get("institution_details", {}).get("verification", {})
