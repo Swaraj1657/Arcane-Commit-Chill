@@ -1,0 +1,6 @@
+pdf2image
+requests
+Pillow
+pandas
+groq
+openpyxl

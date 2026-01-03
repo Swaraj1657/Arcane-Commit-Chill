@@ -67,6 +67,15 @@ def extract_text(file_path: str) -> str:
 
 
 if __name__ == "__main__":
-    text = beautify_academic_document(extract_text("class10.pdf"))# or .pdf
+    text = beautify_academic_document(extract_text(".\TextExtraction\class10.pdf"))# or .pdf
     
     print(json.dumps(text, indent=2))
+
+from verify_college import attach_verification,add_verification_summary
+
+
+structured = beautify_academic_document(text)
+verified = attach_verification(structured)
+final_output = add_verification_summary(verified)
+
+print(json.dumps(final_output, indent=2))
