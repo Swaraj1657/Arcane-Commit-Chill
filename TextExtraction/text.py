@@ -68,5 +68,5 @@ def extract_text(file_path: str) -> str:
 
 if __name__ == "__main__":
     text = beautify_academic_document(extract_text("class10.pdf"))# or .pdf
-    
+
     print(json.dumps(text, indent=2))

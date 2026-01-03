@@ -18,6 +18,7 @@ Rules:
 - Return ONLY valid JSON. No explanations, no markdown.
 """
 
+
 def beautify_academic_document(ocr_text: str) -> dict:
     user_prompt = f"""
 Analyze the following OCR text from an academic document.
@@ -42,14 +43,13 @@ RAW OCR TEXT:
 """
 
     response = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",  # ✅ UPDATED MODEL
-    messages=[
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt}
-    ],
-    temperature=0.1
-)
-
+        model="llama-3.3-70b-versatile",  # ✅ UPDATED MODEL
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=0.1
+    )
 
     content = response.choices[0].message.content.strip()
 
