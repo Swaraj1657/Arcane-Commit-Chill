@@ -1,9 +1,11 @@
 import json
+import os
+from pathlib import Path
 from groq import Groq
 
 # 🔑 Put your Groq API key here
 client = Groq(
-    api_key="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"
+    api_key="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"
 )
 
 SYSTEM_PROMPT = """
@@ -42,18 +44,17 @@ RAW OCR TEXT:
 """
 
     response = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",  # ✅ UPDATED MODEL
-    messages=[
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt}
-    ],
-    temperature=0.1
-)
-
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=0.1
+    )
 
     content = response.choices[0].message.content.strip()
 
-    # 🛡️ SAFETY JSON EXTRACTION
+    # SAFETY JSON EXTRACTION
     start = content.find("{")
     end = content.rfind("}")
 

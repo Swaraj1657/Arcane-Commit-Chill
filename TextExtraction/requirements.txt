@@ -4,3 +4,14 @@ Pillow
 pandas
 groq
 openpyxl
+<<<<<<< Updated upstream
+=======
+rapidfuzz
+opencv-python
+numpy
+torch
+clip-by-openai
+fastapi
+uvicorn
+python-multipart
+>>>>>>> Stashed changes

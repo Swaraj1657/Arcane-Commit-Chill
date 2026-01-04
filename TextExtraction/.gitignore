@@ -1,0 +1,2 @@
+# Ignore local secrets
+groq_key.txt

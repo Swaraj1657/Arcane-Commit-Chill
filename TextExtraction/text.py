@@ -6,6 +6,12 @@ import io
 from pdf2image import convert_from_path
 from PIL import Image
 
+import sys
+from pathlib import Path
+
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
 from beautifyText import beautify_academic_document
 
 API_KEY = "AIzaSyCZbt5DhxYl7tn6SFLdmURz_cZJwi4C1mI"
@@ -67,9 +73,17 @@ def extract_text(file_path: str) -> str:
 
 
 if __name__ == "__main__":
+<<<<<<< Updated upstream
     text = beautify_academic_document(extract_text("degree.pdf"))# or .pdf
     
     print(json.dumps(text, indent=2))
+=======
+    files = [
+        "degree.pdf",
+        # "TextExtraction/class10.pdf",
+        # "TextExtraction/degree.pdf"
+    ]
+>>>>>>> Stashed changes
 
 from verify_college import attach_verification,add_verification_summary
 

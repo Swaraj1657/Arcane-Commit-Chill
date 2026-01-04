@@ -4,7 +4,21 @@ import re
 # =========================
 # CONFIG
 # =========================
+<<<<<<< Updated upstream
 COLLEGE_DB_PATH = "College-ALL COLLEGE.xlsx"
+=======
+import os
+COLLEGE_DB_PATH = os.path.join(os.path.dirname(__file__), "College-ALL COLLEGE.xlsx")
+
+TRUSTED_PRIVATE_ISSUERS = [
+    "mathworks",
+    "coursera",
+    "aws",
+    "google",
+    "microsoft",
+    "nptel"
+]
+>>>>>>> Stashed changes
 
 # =========================
 # HELPERS
@@ -99,9 +113,56 @@ def attach_verification(structured_ocr_json: dict) -> dict:
         "risk_level": "LOW" if verification_result["verified"] else "HIGH"
     }
 
+<<<<<<< Updated upstream
     structured_ocr_json["verified_profile"] = {
         "auto_verified": verification_result["verified"],
         "shareable": True
+=======
+    data["fraud_checks"]["risk_level"] = (
+        "LOW" if verification["verified"] else "HIGH"
+    )
+
+    data["verified_profile"]["auto_verified"] = verification["verified"]
+    data["confidence_score"] = 0.95 if verification["verified"] else 0.45
+
+    # =========================
+    # 4️⃣ LOGO VERIFICATION (SUPPORTING)
+    # =========================
+    logo_result = {"verified": False, "error": "Logo verification not available"}
+    try:
+        logo_dir = os.path.join(os.path.dirname(__file__), "known_logos")
+        reference_logo = os.path.join(logo_dir, "vesit.png")
+        cropped_logo = os.path.join(os.path.dirname(__file__), "extracted_logo.png")
+        
+        if os.path.exists(reference_logo) and os.path.exists(cropped_logo):
+            logo_result = verify_logo_hybrid(
+                reference_logo=reference_logo,
+                cropped_logo=cropped_logo
+            )
+    except Exception as e:
+        logo_result = {"verified": False, "error": str(e)}
+
+    data["institution_details"]["logo_verification"] = logo_result
+
+    if not logo_result.get("verified", False) and "error" not in logo_result:
+        # Only penalize if logo verification was attempted and failed
+        # (not if it wasn't available)
+        data["fraud_checks"]["risk_level"] = "HIGH"
+        data["confidence_score"] -= 0.2
+
+    # =========================
+    # EXPLAINABILITY
+    # =========================
+    data["explainability"] = {
+        "why_verified": [
+            "Institute exists in approved registry",
+            "Certificate issued by recognized authority"
+        ],
+        "why_risk": [] if data["fraud_checks"]["risk_level"] == "LOW" else [
+            "Logo verification failed",
+            "Institute not found in registry"
+        ]
+>>>>>>> Stashed changes
     }
 
     structured_ocr_json["confidence_score"] = (
